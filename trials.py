@@ -1,9 +1,4 @@
 import sys
+import os
 
-n = len(sys.argv)
-print("Number of args: ", n)
-
-print("\nName of script: ", sys.argv[0])
-
-for i in range(1, n):
-   print(sys.argv[i], end = "\n")
+print(os.path.dirname("./testSrc/take-backup/dir1/dir3"))

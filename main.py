@@ -1,10 +1,18 @@
+import filecmp
 import getopt, sys
 import os
+import queue
+import shutil
 
 argsList = sys.argv[1:]
 
-options = "s:d:h"
-long_options = ["source = ", "destination = ", "help"]
+options = "s:d:a:h"
+long_options = ["source = ", "destination = ", "archive = ", "help"]
+
+archPrefix = "_archive1"
+archBaseDir = ""
+errMsg = ""
+report = "Backup Summary"
 
 try:
    args, vals = getopt.getopt(argsList, options, long_options)
@@ -12,21 +20,88 @@ try:
    # checking each argument
    for currArg, currVal in args:
       if currArg in ("-s", "--source"):
-         source = currVal
+         srcBaseDir = currVal
          print("Source: ", currVal)
-         if os.path.isdir(source) == False:
-            print("Got Error: Source directory doesn't exist")
-            sys.exit()
       elif currArg in ("-d", "--destination"):
-         destination = currVal
+         destBaseDir = currVal
          print("Destination: ", currVal)
-         if os.path.isdir(destination) == False:
-            print("Got Error: destination directory doesn't exist")
-            sys.exit()
+      elif currArg in ("-a", "--archive"):
+         archBaseDir = currVal
+         print("Archive: ", currVal)
       elif currArg in ("-h", "--help"):
          print("Printing Help")
 except getopt.error as err:
    print ("Got Error", str(err))
    sys.exit()
 
+
+
+if not srcBaseDir or os.path.isdir(srcBaseDir) == False:
+   errMsg = "Got Error: Source directory doesn't exist"
+if not destBaseDir: # or os.path.isdir(destBaseDir) == False:
+   errMsg += "\nGot Error: destination directory not specified"
+if not archBaseDir:
+   errMsg += "\nGot Error: Archive directory not specified"
+if errMsg:
+   print(errMsg)
+   sys.exit()
+
+dirStack = queue.LifoQueue(9999) #collections.deque()
+
+def backup_file(srcFilePath):
+   global report
+   print("Backing up File: ", srcFilePath)
+   destFilePath = srcFilePath.replace(srcBaseDir, destBaseDir, 1)
+   print("Backup Path: ", destFilePath)
+
+   if os.path.exists(destFilePath):
+      isSame = filecmp.cmp(srcFilePath, destFilePath, shallow=True)
+      if isSame == False:
+         # Move destFile to archive file
+         tmpFilePath = srcFilePath.replace(srcBaseDir, archBaseDir, 1)
+         tmpFileSplit = os.path.splitext(tmpFilePath)         
+         archFilePath = tmpFileSplit[0] + archPrefix + tmpFileSplit[1]
+         archDir = os.path.dirname(archFilePath)
+         if not os.path.exists(archDir):
+            os.makedirs(archDir)
+         report += "\nArchiving:: FROM: " + destFilePath + "; TO: " + archFilePath
+         shutil.copy2(destFilePath, archFilePath)
+
+         # copy the file to destination
+         report += "\nCopying:: FROM: " + srcFilePath + "; TO: " + destFilePath
+         shutil.copy2(srcFilePath, destFilePath)
+   else:
+      # If directory doesn't exist then create it      
+      srcDir = os.path.dirname(srcFilePath)
+      destDir = srcDir.replace(srcBaseDir, destBaseDir, 1)
+      if not os.path.exists(destDir):
+         os.makedirs(destDir)
+      report += "\nCopying:: FROM: " + srcFilePath + "; TO: " + destFilePath
+      shutil.copy2(srcFilePath, destFilePath)
+#end def backup_file
+
+def backup_dir(dirPath):
+   print("Backing up Directory: ", dirPath)
+   currDirPath, dirNames, fileNames = next(os.walk(dirPath))
+   print("currDirPath: ", currDirPath)
+   print("dirNames: ", dirNames)
+   print("fileNames: ", fileNames)
+
+   for dir in dirNames:
+      print("Add to Stack: ", dirPath + "/" + dir)
+      dirStack.put(dirPath + "/" + dir)
+
+   for fl in fileNames:
+      backup_file(dirPath + "/" + fl)
+#end def backup_dir
+
+
+dirStack.put(srcBaseDir)
+
+while dirStack.qsize() > 0:
+   currDir = dirStack.get_nowait()
+   backup_dir(currDir)
+   
+print("\n\n")
+print(report)
 print ("This is the last line")
