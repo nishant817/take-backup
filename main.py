@@ -72,39 +72,47 @@ dirStack = queue.LifoQueue(9999) #collections.deque()
 def backup_file(srcFilePath):
    global report
    print("Backing up File: ", srcFilePath)
-   destFilePath = srcFilePath.replace(srcBaseDir, destBaseDir, 1)
-   print("Backup Path: ", destFilePath)
+   
+   try:
+      destFilePath = srcFilePath.replace(srcBaseDir, destBaseDir, 1)
+      print("Backup Path: ", destFilePath)
 
-   if os.path.exists(destFilePath):
-      isSame = filecmp.cmp(srcFilePath, destFilePath, shallow=True)
-      if isSame == False:
-         # Move destFile to archive file
-         tmpFilePath = srcFilePath.replace(srcBaseDir, archBaseDir, 1)
-         tmpFileSplit = os.path.splitext(tmpFilePath)         
-         archFilePath = tmpFileSplit[0] + archPrefix + tmpFileSplit[1]
-         archDir = os.path.dirname(archFilePath)
-         if not os.path.exists(archDir):
-            os.makedirs(archDir)
-         logmsg = "Archiving:: FROM: " + destFilePath + "; TO: " + archFilePath
-         logging.info(logmsg)
-         report += "\n" + logmsg
-         shutil.copy2(destFilePath, archFilePath)
+      if os.path.exists(destFilePath):
+         isSame = filecmp.cmp(srcFilePath, destFilePath, shallow=True)
+         if isSame == False:
+            # Move destFile to archive file
+            tmpFilePath = srcFilePath.replace(srcBaseDir, archBaseDir, 1)
+            tmpFileSplit = os.path.splitext(tmpFilePath)         
+            archFilePath = tmpFileSplit[0] + archPrefix + tmpFileSplit[1]
+            archDir = os.path.dirname(archFilePath)
+            if not os.path.exists(archDir):
+               os.makedirs(archDir)
+            logmsg = "Archiving:: FROM: " + destFilePath + "; TO: " + archFilePath
+            logging.info(logmsg)
+            report += "\n" + logmsg
+            shutil.copy2(destFilePath, archFilePath)
 
-         # copy the file to destination
+            # copy the file to destination
+            logmsg = "Copying:: FROM: " + srcFilePath + "; TO: " + destFilePath
+            logging.info(logmsg)
+            report += "\n" + logmsg
+            shutil.copy2(srcFilePath, destFilePath)
+      else:
+         # If directory doesn't exist then create it      
+         srcDir = os.path.dirname(srcFilePath)
+         destDir = srcDir.replace(srcBaseDir, destBaseDir, 1)
+         if not os.path.exists(destDir):
+            os.makedirs(destDir)
          logmsg = "Copying:: FROM: " + srcFilePath + "; TO: " + destFilePath
          logging.info(logmsg)
          report += "\n" + logmsg
          shutil.copy2(srcFilePath, destFilePath)
-   else:
-      # If directory doesn't exist then create it      
-      srcDir = os.path.dirname(srcFilePath)
-      destDir = srcDir.replace(srcBaseDir, destBaseDir, 1)
-      if not os.path.exists(destDir):
-         os.makedirs(destDir)
-      logmsg = "Copying:: FROM: " + srcFilePath + "; TO: " + destFilePath
-      logging.info(logmsg)
+   except Exception as e:
+      logmsg = "ERROR:: Exception [" + e.__class__.__name__ + "] in backing of file " + srcFilePath
+      print(logmsg)
+      print(str(e))
+      logging.exception(logmsg)
       report += "\n" + logmsg
-      shutil.copy2(srcFilePath, destFilePath)
 #end def backup_file
 
 def backup_dir(dirPath):
