@@ -116,6 +116,13 @@ def backup_file(srcFilePath):
 #end def backup_file
 
 def backup_dir(dirPath):
+   if "nkishlay_od" in dirPath:
+      print("Skipping: ", dirPath)
+      return
+   if "OneDrive/Pictures" in dirPath:
+      print("Skipping: ", dirPath)
+      return
+
    print("Backing up Directory: ", dirPath)
    currDirPath, dirNames, fileNames = next(os.walk(dirPath))
    print("currDirPath: ", currDirPath)
@@ -133,6 +140,7 @@ def backup_dir(dirPath):
 # Add base directory to stack
 dirStack.put(srcBaseDir)
 
+# This is the starting point. In begining there will be just base dir in stack
 # Itirate through stack and perform backup
 while dirStack.qsize() > 0:
    currDir = dirStack.get_nowait()
